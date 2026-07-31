@@ -1,0 +1,14 @@
+[
+  {
+    "label": "Android: Assemble and Run Debug APK",
+    "command": "./gradlew assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk && adb shell am start -n com.mandarin.aichat/.MainActivity",
+    "shell": "system",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false
+  },
+  {
+    "label": "Android: Run (Wait for Debugger)",
+    "command": "adb shell am start -D -n com.mandarin.aichat/.MainActivity",
+    "shell": "system"
+  }
+]
