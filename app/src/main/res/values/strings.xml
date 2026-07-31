@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Mandarin AI Chat</string>
-    <string name="hello_world">你好，世界！Hello, World!</string>
-    <string name="scaffold_note">A simple scaffold to start building your Mandarin AI chat app.</string>
+    <string name="hint_message">Type a message…</string>
+    <string name="send">Send</string>
 </resources>
