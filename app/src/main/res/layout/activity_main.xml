@@ -5,6 +5,15 @@
     android:fitsSystemWindows="true"
     android:orientation="vertical">
 
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_pinyin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
+        android:text="@string/pinyin_mode"
+        android:textSize="14sp" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/message_list"
         android:layout_width="match_parent"

@@ -69,12 +69,21 @@ class ChatService(
     }
 
     /**
-     * Parses the accumulated JSON response into its [response] and optional [feedback]
-     * fields. Handles multiple concatenated JSON objects (DeepSeek streaming + json_object
-     * mode sometimes emits response and feedback as separate top-level objects).
+     * Parses the accumulated JSON response into its [response] and optional [feedback] fields.
+     * Handles multiple concatenated JSON objects (DeepSeek streaming + json_object mode sometimes
+     * emits response and feedback as separate top-level objects).
      */
     fun parseResponse(rawJson: String): AiResponse {
         Log.d(TAG, "Parsing response (${rawJson.length} chars)")
+
+        if (rawJson.isBlank()) {
+            val hex =
+                    rawJson.take(200).toByteArray(Charsets.UTF_8).joinToString(" ") {
+                        "%02x".format(it)
+                    }
+            Log.e(TAG, "Raw JSON is blank; hex: $hex")
+            throw IOException("Model returned empty response")
+        }
 
         val tokener = JSONTokener(rawJson.trim())
         var response = ""
@@ -97,7 +106,8 @@ class ChatService(
         }
 
         if (response.isEmpty()) {
-            throw IOException("No 'response' field in JSON: ${rawJson.take(200)}")
+            Log.e(TAG, "No 'response' field in parsed JSON; raw=${rawJson.take(500)}")
+            throw IOException("Model response missing 'response' field")
         }
 
         Log.d(
@@ -106,7 +116,6 @@ class ChatService(
         )
         return AiResponse(response, feedback)
     }
-
 
     private fun buildRequest(messages: List<ChatMessage>): Request {
         val body =
@@ -139,7 +148,15 @@ class ChatService(
             array.put(
                     JSONObject().apply {
                         put("role", if (msg.isUser) "user" else "assistant")
-                        put("content", msg.text)
+                        if (!msg.isUser) {
+                            // Wrap assistant content as JSON to match the system prompt
+                            // format, preventing the model from forgetting JSON mode in
+                            // multi-turn conversations.
+                            val wrapped = JSONObject().apply { put("response", msg.text) }
+                            put("content", wrapped.toString())
+                        } else {
+                            put("content", msg.text)
+                        }
                     }
             )
         }

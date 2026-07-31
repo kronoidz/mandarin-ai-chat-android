@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.inputmethod.EditorInfo
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SwitchCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -16,6 +17,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var messageList: RecyclerView
     private lateinit var messageInput: TextInputEditText
+    private lateinit var switchPinyin: SwitchCompat
 
     private val chatAdapter = ChatAdapter()
 
@@ -35,12 +37,17 @@ class MainActivity : AppCompatActivity() {
 
         messageList = findViewById(R.id.message_list)
         messageInput = findViewById(R.id.message_input)
+        switchPinyin = findViewById(R.id.switch_pinyin)
         val sendButton = findViewById<MaterialButton>(R.id.button_send)
 
         messageList.layoutManager = LinearLayoutManager(this)
         messageList.adapter = chatAdapter
 
         restoreMessages(savedInstanceState)
+
+        switchPinyin.setOnCheckedChangeListener { _, isChecked ->
+            chatAdapter.pinyinEnabled = isChecked
+        }
 
         sendButton.setOnClickListener { sendMessage() }
         messageInput.setOnEditorActionListener { _, actionId, _ ->
@@ -106,7 +113,14 @@ class MainActivity : AppCompatActivity() {
                     try {
                         chatService.streamChat(history).collect { token -> raw.append(token) }
 
-                        Log.d(TAG, "Raw JSON: ${raw.take(500)}")
+                        Log.d(TAG, "Raw JSON (${raw.length} chars): ${raw.take(500)}")
+                        if (raw.isNotEmpty() && raw.all { it.isWhitespace() }) {
+                            val hex =
+                                    raw.toString().take(200).toByteArray().joinToString(" ") {
+                                        "%02x".format(it)
+                                    }
+                            Log.w(TAG, "Raw JSON appears to be all whitespace; hex: $hex")
+                        }
 
                         val parsed = chatService.parseResponse(raw.toString())
                         chatAdapter.updateMessage(placeholderPosition, parsed.response)
