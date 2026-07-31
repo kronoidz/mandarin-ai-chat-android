@@ -1,6 +1,13 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+}
+
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
 }
 
 android {
@@ -13,14 +20,26 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+
+        val apiUrl = localProperties.getProperty("OPENAI_API_URL", "https://api.openai.com/v1")
+        val apiKey = localProperties.getProperty("OPENAI_API_KEY", "YourApiKey")
+        val model = localProperties.getProperty("OPENAI_MODEL", "gpt-4o-mini")
+
+        buildConfigField("String", "OPENAI_API_URL", "\"${apiUrl}\"")
+        buildConfigField("String", "OPENAI_API_KEY", "\"${apiKey}\"")
+        buildConfigField("String", "OPENAI_MODEL", "\"${model}\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(
-                    getDefaultProguardFile("proguard-android-optimize.txt"),
-                    "proguard-rules.pro"
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
             )
         }
     }
@@ -30,7 +49,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions { jvmTarget = "17" }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 }
 
 dependencies {
@@ -38,4 +59,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.recyclerview)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.lifecycle.runtime.ktx)
+    implementation(libs.okhttp)
 }

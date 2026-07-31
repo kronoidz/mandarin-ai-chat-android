@@ -10,9 +10,18 @@ class ChatAdapter : RecyclerView.Adapter<ChatAdapter.MessageViewHolder>() {
 
     private val items = mutableListOf<ChatMessage>()
 
-    fun add(message: ChatMessage) {
+    /** Adds a message and returns its adapter position. */
+    fun add(message: ChatMessage): Int {
         items.add(message)
-        notifyItemInserted(items.size - 1)
+        val position = items.size - 1
+        notifyItemInserted(position)
+        return position
+    }
+
+    /** Replaces the text of the message at [position] in place (for streaming updates). */
+    fun updateMessage(position: Int, text: String) {
+        items[position] = items[position].copy(text = text)
+        notifyItemChanged(position)
     }
 
     fun restore(messages: List<ChatMessage>) {

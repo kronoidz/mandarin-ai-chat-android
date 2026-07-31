@@ -1,14 +1,15 @@
 package com.mandarin.aichat
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.inputmethod.EditorInfo
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -16,8 +17,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var messageInput: TextInputEditText
 
     private val chatAdapter = ChatAdapter()
-    private val replyHandler = Handler(Looper.getMainLooper())
-    private var pendingReply: Runnable? = null
+
+    private val chatService by lazy {
+        ChatService(
+                apiUrl = BuildConfig.OPENAI_API_URL,
+                apiKey = BuildConfig.OPENAI_API_KEY,
+                model = BuildConfig.OPENAI_MODEL
+        )
+    }
+
+    private var streamJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,7 +53,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        replyHandler.removeCallbacksAndMessages(null)
+        streamJob?.cancel()
+        streamJob = null
         super.onDestroy()
     }
 
@@ -78,29 +88,51 @@ class MainActivity : AppCompatActivity() {
         scrollToBottom()
         messageInput.setText("")
 
-        scheduleReply()
+        startStreamingResponse()
     }
 
-    private fun scheduleReply() {
-        pendingReply?.let(replyHandler::removeCallbacks)
-        pendingReply = Runnable {
-            chatAdapter.add(ChatMessage(LOREM_IPSUM, isUser = false))
-            scrollToBottom()
-        }
-        replyHandler.postDelayed(pendingReply!!, REPLY_DELAY_MS)
+    private fun startStreamingResponse() {
+        streamJob?.cancel()
+
+        val placeholderPosition = chatAdapter.add(ChatMessage("...", isUser = false))
+        scrollToBottom()
+
+        val history = buildHistory()
+
+        streamJob =
+                lifecycleScope.launch {
+                    val response = StringBuilder()
+                    try {
+                        chatService.streamChat(history).collect { token ->
+                            response.append(token)
+                            chatAdapter.updateMessage(placeholderPosition, response.toString())
+                            scrollToBottom()
+                        }
+                    } catch (e: Exception) {
+                        chatAdapter.updateMessage(
+                                placeholderPosition,
+                                getString(R.string.error_prefix, e.localizedMessage ?: "")
+                        )
+                    }
+                }
+    }
+
+    /**
+     * Builds the conversation history from the adapter, excluding the last placeholder (streaming
+     * "...") message so it is not sent to the API.
+     */
+    private fun buildHistory(): List<ChatMessage> {
+        val messages = chatAdapter.snapshot()
+        if (messages.isEmpty()) return emptyList()
+        return messages.subList(0, messages.size - 1)
     }
 
     private fun scrollToBottom() {
-        messageList.scrollToPosition(chatAdapter.itemCount - 1)
+        messageList.post { messageList.smoothScrollToPosition(chatAdapter.itemCount - 1) }
     }
 
     private companion object {
         const val STATE_TEXTS = "state_texts"
         const val STATE_SENDERS = "state_senders"
-        const val REPLY_DELAY_MS = 600L
-        const val LOREM_IPSUM =
-                "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
-                        "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. " +
-                        "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris."
     }
 }
