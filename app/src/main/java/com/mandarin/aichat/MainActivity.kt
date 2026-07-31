@@ -1,6 +1,7 @@
 package com.mandarin.aichat
 
 import android.os.Bundle
+import android.util.Log
 import android.view.inputmethod.EditorInfo
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -101,14 +102,24 @@ class MainActivity : AppCompatActivity() {
 
         streamJob =
                 lifecycleScope.launch {
-                    val response = StringBuilder()
+                    val raw = StringBuilder()
                     try {
-                        chatService.streamChat(history).collect { token ->
-                            response.append(token)
-                            chatAdapter.updateMessage(placeholderPosition, response.toString())
-                            scrollToBottom()
+                        chatService.streamChat(history).collect { token -> raw.append(token) }
+
+                        Log.d(TAG, "Raw JSON: ${raw.take(500)}")
+
+                        val parsed = chatService.parseResponse(raw.toString())
+                        chatAdapter.updateMessage(placeholderPosition, parsed.response)
+
+                        if (parsed.feedback != null) {
+                            chatAdapter.add(
+                                    ChatMessage(parsed.feedback, isUser = false, isFeedback = true)
+                            )
                         }
+                        scrollToBottom()
                     } catch (e: Exception) {
+                        Log.e(TAG, "Stream failed", e)
+                        Log.e(TAG, "Raw JSON so far: ${raw.take(1000)}")
                         chatAdapter.updateMessage(
                                 placeholderPosition,
                                 getString(R.string.error_prefix, e.localizedMessage ?: "")
@@ -118,13 +129,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Builds the conversation history from the adapter, excluding the last placeholder (streaming
-     * "...") message so it is not sent to the API.
+     * Builds the conversation history from the adapter, excluding feedback messages and the last
+     * placeholder ("...") so neither is sent to the API.
      */
     private fun buildHistory(): List<ChatMessage> {
         val messages = chatAdapter.snapshot()
         if (messages.isEmpty()) return emptyList()
-        return messages.subList(0, messages.size - 1)
+        return messages.dropLast(1).filter { !it.isFeedback }
     }
 
     private fun scrollToBottom() {
@@ -132,6 +143,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private companion object {
+        const val TAG = "MainActivity"
         const val STATE_TEXTS = "state_texts"
         const val STATE_SENDERS = "state_senders"
     }

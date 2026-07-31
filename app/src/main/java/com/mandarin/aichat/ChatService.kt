@@ -1,5 +1,6 @@
 package com.mandarin.aichat
 
+import android.util.Log
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
@@ -11,7 +12,11 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
+import org.json.JSONTokener
+
+data class AiResponse(val response: String, val feedback: String?)
 
 class ChatService(
         private val apiUrl: String,
@@ -24,35 +29,84 @@ class ChatService(
                     .readTimeout(2, TimeUnit.MINUTES)
                     .build()
 
-    /** Streams tokens from the OpenAI-compatible chat completions endpoint. */
+    /** Streams raw tokens from the OpenAI-compatible chat completions endpoint. */
     fun streamChat(messages: List<ChatMessage>): Flow<String> = flow {
         val request = buildRequest(messages)
+
+        Log.d(TAG, "→ POST ${request.url}  model=$model  messages=${messages.size}")
 
         val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
 
         if (!response.isSuccessful) {
-            throw IOException("HTTP ${response.code}: ${response.body?.string()}")
+            val errorBody = response.body?.string().orEmpty()
+            Log.e(TAG, "HTTP ${response.code}: $errorBody")
+            throw IOException("HTTP ${response.code}: $errorBody")
         }
 
         val source = response.body?.source() ?: throw IOException("Empty response body")
 
+        var chunkCount = 0
         while (!source.exhausted()) {
             val line = source.readUtf8Line() ?: break
             if (line.startsWith("data: ")) {
                 val data = line.removePrefix("data: ")
-                if (data == "[DONE]") break
+                if (data == "[DONE]") {
+                    Log.d(TAG, "Stream complete after $chunkCount chunks")
+                    break
+                }
 
                 try {
                     val content = parseToken(data)
                     if (content.isNotEmpty()) {
+                        chunkCount++
                         emit(content)
                     }
-                } catch (_: Exception) {
-                    // Skip malformed or non-content SSE chunks
+                } catch (e: Exception) {
+                    Log.w(TAG, "Skipping malformed SSE chunk: $data", e)
                 }
             }
         }
     }
+
+    /**
+     * Parses the accumulated JSON response into its [response] and optional [feedback]
+     * fields. Handles multiple concatenated JSON objects (DeepSeek streaming + json_object
+     * mode sometimes emits response and feedback as separate top-level objects).
+     */
+    fun parseResponse(rawJson: String): AiResponse {
+        Log.d(TAG, "Parsing response (${rawJson.length} chars)")
+
+        val tokener = JSONTokener(rawJson.trim())
+        var response = ""
+        var feedback: String? = null
+
+        try {
+            while (true) {
+                val value = tokener.nextValue()
+                if (value is JSONObject) {
+                    if (value.has("response")) {
+                        response = value.getString("response")
+                    }
+                    if (value.has("feedback")) {
+                        feedback = value.getString("feedback")
+                    }
+                }
+            }
+        } catch (_: JSONException) {
+            // Normal end of token stream
+        }
+
+        if (response.isEmpty()) {
+            throw IOException("No 'response' field in JSON: ${rawJson.take(200)}")
+        }
+
+        Log.d(
+                TAG,
+                "Parsed: response=${response.length} chars, feedback=${feedback?.length ?: 0} chars"
+        )
+        return AiResponse(response, feedback)
+    }
+
 
     private fun buildRequest(messages: List<ChatMessage>): Request {
         val body =
@@ -61,6 +115,7 @@ class ChatService(
                     put("messages", buildMessagesArray(messages))
                     put("stream", true)
                     put("thinking", JSONObject().apply { put("type", "disabled") })
+                    put("response_format", JSONObject().apply { put("type", "json_object") })
                     toString()
                 }
 
@@ -101,9 +156,23 @@ class ChatService(
     }
 
     private companion object {
+        const val TAG = "ChatService"
         const val SYSTEM_PROMPT =
                 "You are a helpful AI language tutor specializing in Mandarin Chinese. " +
-                        "Respond to the user's messages, helping them learn and practice Mandarin. " +
-                        "When appropriate, include pinyin and English translations."
+                        "You MUST respond with a JSON object in exactly this format:\n" +
+                        "{\n" +
+                        "  \"response\": \"your reply in Simplified Chinese using only Hanzi characters\",\n" +
+                        "  \"feedback\": \"optional correction guidance in English\"\n" +
+                        "}\n\n" +
+                        "Rules:\n" +
+                        "- \"response\" is REQUIRED. Reply in Simplified Chinese using ONLY Hanzi characters " +
+                        "(no Pinyin, no English). Be natural and friendly, like having a conversation " +
+                        "with a friend. Keep the conversation going.\n" +
+                        "- \"feedback\" is OPTIONAL. ONLY include this field when the user's message has " +
+                        "issues: contains English, contains Pinyin instead of Hanzi, is grammatically wrong, " +
+                        "or is unnaturally phrased. When present, write the feedback in English — " +
+                        "gently explain the issue and show the correct Chinese phrasing.\n" +
+                        "- If no feedback is needed, OMIT the \"feedback\" field entirely. " +
+                        "Do NOT set it to null, empty string, or a placeholder."
     }
 }

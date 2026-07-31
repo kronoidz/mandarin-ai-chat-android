@@ -4,4 +4,5 @@
     <color name="bubble_user">#00695C</color>
     <color name="bubble_user_text">#FFFFFF</color>
     <color name="bubble_bot">#E0E0E0</color>
+    <color name="bubble_feedback">#FFF3CD</color>
 </resources>
