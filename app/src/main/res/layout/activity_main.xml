@@ -13,6 +13,21 @@
         android:paddingHorizontal="12dp"
         android:paddingVertical="8dp">
 
+        <ImageButton
+            android:id="@+id/button_settings"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/settings"
+            android:src="@drawable/ic_settings"
+            android:scaleType="fitCenter"
+            android:padding="8dp" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -28,21 +43,6 @@
                 android:text="@string/pinyin_mode"
                 android:textSize="14sp" />
         </LinearLayout>
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-
-        <ImageButton
-            android:id="@+id/button_settings"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/settings"
-            android:src="@drawable/ic_settings"
-            android:scaleType="fitCenter"
-            android:padding="8dp" />
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
