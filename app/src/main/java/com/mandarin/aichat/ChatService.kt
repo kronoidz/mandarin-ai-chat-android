@@ -30,8 +30,8 @@ class ChatService(
                     .build()
 
     /** Streams raw tokens from the OpenAI-compatible chat completions endpoint. */
-    fun streamChat(messages: List<ChatMessage>): Flow<String> = flow {
-        val request = buildRequest(messages)
+    fun streamChat(messages: List<ChatMessage>, thinkingEffort: String): Flow<String> = flow {
+        val request = buildRequest(messages, thinkingEffort)
 
         Log.d(TAG, "→ POST ${request.url}  model=$model  messages=${messages.size}")
 
@@ -117,13 +117,23 @@ class ChatService(
         return AiResponse(response, feedback)
     }
 
-    private fun buildRequest(messages: List<ChatMessage>): Request {
+    private fun buildRequest(messages: List<ChatMessage>, thinkingEffort: String): Request {
         val body =
                 JSONObject().run {
                     put("model", model)
                     put("messages", buildMessagesArray(messages))
                     put("stream", true)
-                    put("thinking", JSONObject().apply { put("type", "disabled") })
+                    put(
+                            "thinking",
+                            if (thinkingEffort == "disabled") {
+                                JSONObject().apply { put("type", "disabled") }
+                            } else {
+                                JSONObject().apply {
+                                    put("type", "enabled")
+                                    put("thinking_effort", thinkingEffort)
+                                }
+                            }
+                    )
                     put("response_format", JSONObject().apply { put("type", "json_object") })
                     toString()
                 }

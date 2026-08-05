@@ -1,8 +1,10 @@
 package com.mandarin.aichat
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.inputmethod.EditorInfo
+import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.lifecycle.lifecycleScope
@@ -18,6 +20,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var messageList: RecyclerView
     private lateinit var messageInput: TextInputEditText
     private lateinit var switchPinyin: SwitchCompat
+    private lateinit var buttonSettings: ImageButton
 
     private val chatAdapter = ChatAdapter()
 
@@ -38,6 +41,7 @@ class MainActivity : AppCompatActivity() {
         messageList = findViewById(R.id.message_list)
         messageInput = findViewById(R.id.message_input)
         switchPinyin = findViewById(R.id.switch_pinyin)
+        buttonSettings = findViewById(R.id.button_settings)
         val sendButton = findViewById<MaterialButton>(R.id.button_send)
 
         messageList.layoutManager = LinearLayoutManager(this)
@@ -47,6 +51,10 @@ class MainActivity : AppCompatActivity() {
 
         switchPinyin.setOnCheckedChangeListener { _, isChecked ->
             chatAdapter.pinyinEnabled = isChecked
+        }
+
+        buttonSettings.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
 
         sendButton.setOnClickListener { sendMessage() }
@@ -106,12 +114,15 @@ class MainActivity : AppCompatActivity() {
         scrollToBottom()
 
         val history = buildHistory()
+        val thinkingEffort = SettingsActivity.getThinkingEffort()
 
         streamJob =
                 lifecycleScope.launch {
                     val raw = StringBuilder()
                     try {
-                        chatService.streamChat(history).collect { token -> raw.append(token) }
+                        chatService.streamChat(history, thinkingEffort).collect { token ->
+                            raw.append(token)
+                        }
 
                         Log.d(TAG, "Raw JSON (${raw.length} chars): ${raw.take(500)}")
                         if (raw.isNotEmpty() && raw.all { it.isWhitespace() }) {

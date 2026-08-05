@@ -5,4 +5,11 @@
     <string name="send">Send</string>
     <string name="error_prefix">Error: %s</string>
     <string name="pinyin_mode">Pinyin</string>
+    <string name="settings">Settings</string>
+    <string name="thinking_effort">Thinking Effort</string>
+    <string name="thinking_disabled">Disabled</string>
+    <string name="thinking_low">Low</string>
+    <string name="thinking_high">High</string>
+    <string name="thinking_xhigh">Extra High</string>
+    <string name="thinking_max">Maximum</string>
 </resources>
