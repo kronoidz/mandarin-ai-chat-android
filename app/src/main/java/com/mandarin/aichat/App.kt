@@ -7,6 +7,7 @@ class App : Application() {
         super.onCreate()
         instance = this
         PinyinDict.init(this)
+        TtsAudioCache.init(this)
     }
 
     companion object {

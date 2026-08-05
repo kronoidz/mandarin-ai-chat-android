@@ -28,6 +28,21 @@ android {
         buildConfigField("String", "OPENAI_API_URL", "\"${apiUrl}\"")
         buildConfigField("String", "OPENAI_API_KEY", "\"${apiKey}\"")
         buildConfigField("String", "OPENAI_MODEL", "\"${model}\"")
+
+        // Google Cloud TTS service account credentials.
+        // Set GOOGLE_TTS_CREDENTIALS_PATH in local.properties to point to your
+        // service-account JSON key file. The content is embedded at build time.
+        val ttsCredentialsPath = localProperties.getProperty("GOOGLE_TTS_CREDENTIALS_PATH", "")
+        val ttsCredentialsJson = if (ttsCredentialsPath.isNotEmpty()) {
+            file(ttsCredentialsPath).readText(Charsets.UTF_8)
+        } else {
+            ""
+        }
+        buildConfigField(
+            "String",
+            "GOOGLE_TTS_CREDENTIALS",
+            "\"${ttsCredentialsJson.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")}\""
+        )
     }
 
     buildFeatures {

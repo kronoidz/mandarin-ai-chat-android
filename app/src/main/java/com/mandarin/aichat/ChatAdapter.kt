@@ -17,6 +17,17 @@ class ChatAdapter : RecyclerView.Adapter<ChatAdapter.MessageViewHolder>() {
             notifyDataSetChanged()
         }
 
+    /** Called when the user taps a speaker button. */
+    var onSpeakClick: ((String) -> Unit)? = null
+
+    /** Returns true when TTS credentials have been configured. */
+    var ttsAvailable: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            notifyDataSetChanged()
+        }
+
     /** Adds a message and returns its adapter position. */
     fun add(message: ChatMessage): Int {
         items.add(message)
@@ -57,19 +68,37 @@ class ChatAdapter : RecyclerView.Adapter<ChatAdapter.MessageViewHolder>() {
                 }
         val view = LayoutInflater.from(parent.context).inflate(layoutRes, parent, false)
         val textView = view.findViewById<PinyinTextView>(R.id.message_text)
-        return MessageViewHolder(view, textView)
+        val speakerButton = view.findViewById<View>(R.id.speaker_button)
+        return MessageViewHolder(view, textView, speakerButton)
     }
 
     override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
-        holder.bind(items[position], pinyinEnabled)
+        holder.bind(items[position], pinyinEnabled, ttsAvailable, onSpeakClick)
     }
 
-    class MessageViewHolder(rootView: View, private val textView: PinyinTextView) :
-            RecyclerView.ViewHolder(rootView) {
+    class MessageViewHolder(
+            rootView: View,
+            private val textView: PinyinTextView,
+            private val speakerButton: View?
+    ) : RecyclerView.ViewHolder(rootView) {
 
-        fun bind(message: ChatMessage, pinyinEnabled: Boolean) {
+        fun bind(
+                message: ChatMessage,
+                pinyinEnabled: Boolean,
+                ttsAvailable: Boolean,
+                onSpeakClick: ((String) -> Unit)?
+        ) {
             textView.text = message.text
             textView.pinyinEnabled = pinyinEnabled
+
+            val showSpeaker = !message.isFeedback && ttsAvailable
+            speakerButton?.visibility = if (showSpeaker) View.VISIBLE else View.GONE
+
+            speakerButton?.setOnClickListener {
+                if (showSpeaker) {
+                    onSpeakClick?.invoke(message.text)
+                }
+            }
         }
     }
 

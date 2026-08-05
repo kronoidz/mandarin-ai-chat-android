@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:gravity="end"
+    android:orientation="horizontal"
     android:paddingVertical="4dp">
+
+    <include
+        android:id="@+id/speaker_button"
+        layout="@layout/item_chat_speaker_button" />
 
     <com.mandarin.aichat.PinyinTextView
         android:id="@+id/message_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="end"
         android:background="@drawable/bg_bubble_user"
         android:maxWidth="300dp"
         android:paddingHorizontal="14dp"
@@ -16,4 +21,4 @@
         android:textColor="@color/bubble_user_text"
         android:textIsSelectable="true"
         android:textSize="16sp" />
-</FrameLayout>
+</LinearLayout>

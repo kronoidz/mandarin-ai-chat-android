@@ -1,10 +1,12 @@
 package com.mandarin.aichat
 
 import android.content.Intent
+import android.media.MediaPlayer
 import android.os.Bundle
 import android.util.Log
 import android.view.inputmethod.EditorInfo
 import android.widget.ImageButton
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.lifecycle.lifecycleScope
@@ -12,8 +14,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
+import java.io.File
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
@@ -33,6 +38,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var streamJob: Job? = null
+    private var mediaPlayer: MediaPlayer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +54,11 @@ class MainActivity : AppCompatActivity() {
         messageList.adapter = chatAdapter
 
         restoreMessages(savedInstanceState)
+
+        // Configure TTS availability based on build credentials.
+        chatAdapter.ttsAvailable = TextToSpeechService.isAvailable
+
+        chatAdapter.onSpeakClick = { text -> speakText(text) }
 
         switchPinyin.setOnCheckedChangeListener { _, isChecked ->
             chatAdapter.pinyinEnabled = isChecked
@@ -71,6 +82,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         streamJob?.cancel()
         streamJob = null
+        releaseMediaPlayer()
         super.onDestroy()
     }
 
@@ -165,6 +177,66 @@ class MainActivity : AppCompatActivity() {
 
     private fun scrollToBottom() {
         messageList.post { messageList.smoothScrollToPosition(chatAdapter.itemCount - 1) }
+    }
+
+    // ---- TTS / Speaker ----
+
+    private fun speakText(text: String) {
+        releaseMediaPlayer()
+
+        // Check cache first — no network call needed on a hit.
+        val cached = TtsAudioCache.get(text)
+        if (cached != null) {
+            playAudio(cached)
+            return
+        }
+
+        lifecycleScope.launch {
+            try {
+                val audioBytes = TextToSpeechService.synthesize(text)
+                TtsAudioCache.put(text, audioBytes)
+                playAudio(audioBytes)
+            } catch (e: Exception) {
+                Log.e(TAG, "TTS failed", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                                    this@MainActivity,
+                                    getString(R.string.error_prefix, e.localizedMessage ?: ""),
+                                    Toast.LENGTH_SHORT
+                            )
+                            .show()
+                }
+            }
+        }
+    }
+
+    private fun playAudio(audioBytes: ByteArray) {
+        val tempFile = File.createTempFile("tts_", ".mp3", cacheDir)
+        tempFile.writeBytes(audioBytes)
+
+        mediaPlayer =
+                MediaPlayer().apply {
+                    setDataSource(tempFile.absolutePath)
+                    setOnPreparedListener { start() }
+                    setOnCompletionListener {
+                        releaseMediaPlayer()
+                        tempFile.delete()
+                    }
+                    setOnErrorListener { _, _, _ ->
+                        releaseMediaPlayer()
+                        tempFile.delete()
+                        true
+                    }
+                    prepareAsync()
+                }
+    }
+
+    private fun releaseMediaPlayer() {
+        mediaPlayer?.apply {
+            if (isPlaying) stop()
+            release()
+        }
+        mediaPlayer = null
     }
 
     private companion object {
