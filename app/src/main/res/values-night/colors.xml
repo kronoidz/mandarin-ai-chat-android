@@ -2,4 +2,5 @@
 <resources>
     <color name="bubble_bot">#38343C</color>
     <color name="bubble_feedback">#3D3200</color>
+    <color name="chip_pinyin">#49454F</color>
 </resources>

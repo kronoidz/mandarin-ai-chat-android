@@ -5,4 +5,5 @@
     <color name="bubble_user_text">#FFFFFF</color>
     <color name="bubble_bot">#E0E0E0</color>
     <color name="bubble_feedback">#FFF3CD</color>
+    <color name="chip_pinyin">#E7E0EC</color>
 </resources>
