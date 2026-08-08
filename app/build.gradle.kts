@@ -5,10 +5,11 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
-val localProperties = Properties().apply {
-    val file = rootProject.file("local.properties")
-    if (file.exists()) file.inputStream().use { load(it) }
-}
+val localProperties =
+        Properties().apply {
+            val file = rootProject.file("local.properties")
+            if (file.exists()) file.inputStream().use { load(it) }
+        }
 
 android {
     namespace = "com.mandarin.aichat"
@@ -33,28 +34,27 @@ android {
         // Set GOOGLE_TTS_CREDENTIALS_PATH in local.properties to point to your
         // service-account JSON key file. The content is embedded at build time.
         val ttsCredentialsPath = localProperties.getProperty("GOOGLE_TTS_CREDENTIALS_PATH", "")
-        val ttsCredentialsJson = if (ttsCredentialsPath.isNotEmpty()) {
-            file(ttsCredentialsPath).readText(Charsets.UTF_8)
-        } else {
-            ""
-        }
+        val ttsCredentialsJson =
+                if (ttsCredentialsPath.isNotEmpty()) {
+                    file(ttsCredentialsPath).readText(Charsets.UTF_8)
+                } else {
+                    ""
+                }
         buildConfigField(
-            "String",
-            "GOOGLE_TTS_CREDENTIALS",
-            "\"${ttsCredentialsJson.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")}\""
+                "String",
+                "GOOGLE_TTS_CREDENTIALS",
+                "\"${ttsCredentialsJson.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")}\""
         )
     }
 
-    buildFeatures {
-        buildConfig = true
-    }
+    buildFeatures { buildConfig = true }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro"
             )
         }
     }
@@ -64,9 +64,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    kotlinOptions { jvmTarget = "17" }
 }
 
 dependencies {
@@ -77,4 +75,5 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.okhttp)
+    implementation(libs.pinyin4j)
 }

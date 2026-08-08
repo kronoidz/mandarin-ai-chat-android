@@ -34,22 +34,19 @@ User message
 │         │                     │               │
 │    ┌────▼────────┐    ┌───────▼──────────┐    │
 │    │ PinyinDict  │    │  TtsAudioCache    │   │
-│    │ (Unihan DB) │    │  (MD5 → MP3 disk) │   │
+│    │ (pinyin4j)  │    │  (MD5 → MP3 disk) │   │
 │    └─────────────┘    └───────────────────┘   │
 └───────────────────────────────────────────────┘
 ```
 
 ### Pinyin dictionary
 
-The `pinyin_dict.bin` file in `app/src/main/assets/` is generated from the
-[Unihan database](https://www.unicode.org/reports/tr38/) `kMandarin` field.
-Use the included script to regenerate it:
+Hanzi-to-pinyin conversion is handled by the [pinyin4j](https://github.com/belerweb/pinyin4j)
+library (`com.belerweb:pinyin4j:2.5.0`), which maps Unicode codepoints to pinyin
+readings at runtime. Characters with multiple valid readings return all variants;
+the pinyin overlay uses the first (most common) reading.
 
-```bash
-python3 tools/generate_pinyin_dict.py /path/to/Unihan_Readings.txt
-```
-
-The binary format is compact and designed for fast O(1) lookups on-device with zero memory overhead beyond the raw dictionary size.
+No asset files or build-time preprocessing are required.
 
 ## Requirements
 

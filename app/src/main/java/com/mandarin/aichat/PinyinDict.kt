@@ -1,50 +1,51 @@
 package com.mandarin.aichat
 
-import android.content.Context
+import net.sourceforge.pinyin4j.PinyinHelper
+import net.sourceforge.pinyin4j.format.HanyuPinyinOutputFormat
+import net.sourceforge.pinyin4j.format.HanyuPinyinToneType
+import net.sourceforge.pinyin4j.format.HanyuPinyinVCharType
 
 /**
- * Singleton that loads the compact pinyin dictionary from assets on first use and provides O(1)
- * codepoint-to-pinyin lookups.
+ * Singleton that wraps [PinyinHelper] from the pinyin4j library to convert Hanzi codepoints to
+ * pinyin readings.
  *
- * Dictionary is generated from the Unihan database (kMandarin field) by
- * [tools/generate_pinyin_dict.py].
+ * Since many CJK characters have multiple valid pinyin readings (depending on context), [get]
+ * returns only the first (most common) reading while [getAll] returns every known reading. Results
+ * are cached in-memory after first lookup.
  */
 object PinyinDict {
 
-    private val map = HashMap<Int, String>()
-    @Volatile private var loaded = false
-
-    /** Must be called once before any [get] calls, e.g. in Application.onCreate(). */
-    fun init(context: Context) {
-        if (loaded) return
-        synchronized(this) {
-            if (loaded) return
-
-            val bytes = context.assets.open("pinyin_dict.bin").use { it.readBytes() }
-            var offset = 0
-            while (offset + 5 <= bytes.size) {
-                val cp =
-                        bytes[offset].toInt() and
-                                0xFF or
-                                ((bytes[offset + 1].toInt() and 0xFF) shl 8) or
-                                ((bytes[offset + 2].toInt() and 0xFF) shl 16) or
-                                ((bytes[offset + 3].toInt() and 0xFF) shl 24)
-                offset += 4
-                val len = bytes[offset].toInt() and 0xFF
-                offset += 1
-                val pinyin = String(bytes, offset, len, Charsets.UTF_8)
-                offset += len
-                map[cp] = pinyin
+    private val outputFormat =
+            HanyuPinyinOutputFormat().apply {
+                toneType = HanyuPinyinToneType.WITH_TONE_MARK
+                vCharType = HanyuPinyinVCharType.WITH_U_UNICODE
             }
-            loaded = true
+
+    /** Cache: codepoint → array of pinyin readings. */
+    private val cache = HashMap<Int, Array<String>>()
+
+    /**
+     * Returns the first (most common) pinyin reading for [codepoint], or null if the character is
+     * not a Hanzi character.
+     */
+    fun get(codepoint: Int): String? = getAll(codepoint).firstOrNull()
+
+    /**
+     * Returns all known pinyin readings for [codepoint], or an empty array if the character is not
+     * a Hanzi character.
+     *
+     * Readings are cached after the first lookup.
+     */
+    fun getAll(codepoint: Int): Array<String> {
+        cache[codepoint]?.let {
+            return it
         }
+        val chars = Character.toChars(codepoint)
+        if (chars.size != 1) return emptyArray()
+        val result = PinyinHelper.toHanyuPinyinStringArray(chars[0], outputFormat) ?: emptyArray()
+        cache[codepoint] = result
+        return result
     }
-
-    /** Returns the pinyin reading for [codepoint], or null if not found. */
-    fun get(codepoint: Int): String? = map[codepoint]
-
-    /** Whether [init] has completed successfully. */
-    fun isLoaded(): Boolean = loaded
 
     /** Useful for CJK range checks — avoids map lookups outside this range. */
     val cjkRange: IntRange = 0x3400..0x9FFF

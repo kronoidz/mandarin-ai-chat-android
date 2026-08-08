@@ -94,7 +94,6 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (!pinyinEnabled) return
-        if (!PinyinDict.isLoaded()) return
 
         val layout = layout ?: return
         val str = text?.toString() ?: return
