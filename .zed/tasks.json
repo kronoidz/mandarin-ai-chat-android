@@ -5,10 +5,5 @@
     "shell": "system",
     "use_new_terminal": false,
     "allow_concurrent_runs": false
-  },
-  {
-    "label": "Android: Run (Wait for Debugger)",
-    "command": "adb shell am start -D -n com.mandarin.aichat/.MainActivity",
-    "shell": "system"
   }
 ]
